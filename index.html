@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Price Prediction - TensorFlow.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .input-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .visualization-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .visualization-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .result-card h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .result-card .price {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .status {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .status.training {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .status.success {
+            background: #e8f5e8;
+            border-left-color: #4caf50;
+        }
+
+        .status.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .metric-card h4 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .metric-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 House Price Prediction</h1>
+            <p>AI-powered real estate price prediction using TensorFlow.js</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>🔢 Property Details</h2>
+                
+                <div class="form-group">
+                    <label for="sqft">Square Footage:</label>
+                    <input type="number" id="sqft" placeholder="1500" min="500" max="5000">
+                </div>
+
+                <div class="form-group">
+                    <label for="bedrooms">Number of Bedrooms:</label>
+                    <input type="number" id="bedrooms" placeholder="3" min="1" max="10">
+                </div>
+
+                <div class="form-group">
+                    <label for="bathrooms">Number of Bathrooms:</label>
+                    <input type="number" id="bathrooms" placeholder="2" min="1" max="10">
+                </div>
+
+                <div class="form-group">
+                    <label for="age">Property Age (years):</label>
+                    <input type="number" id="age" placeholder="5" min="0" max="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="location">Location Type:</label>
+                    <select id="location">
+                        <option value="urban">Urban</option>
+                        <option value="suburban">Suburban</option>
+                        <option value="rural">Rural</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="trainModel()" id="trainBtn">
+                    🚀 Train Model
+                </button>
+
+                <button class="btn" onclick="predictPrice()" id="predictBtn" disabled>
+                    💰 Predict Price
+                </button>
+            </div>
+
+            <div class="visualization-section">
+                <h2>📊 Model Training Visualization</h2>
+                
+                <div id="status" class="status">
+                    <strong>Status:</strong> Model ready for training. Click "Train Model" to begin.
+                </div>
+
+                <div id="result" class="result-card" style="display: none;">
+                    <h3>Predicted Price</h3>
+                    <div class="price" id="predictedPrice">$0</div>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div id="progressText" style="text-align: center; margin-top: 10px;">Ready to train</div>
+
+                <div class="metrics">
+                    <div class="metric-card">
+                        <h4>Training Loss</h4>
+                        <div class="value" id="trainLoss">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Validation Loss</h4>
+                        <div class="value" id="valLoss">-</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="lossChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample training data
+        const trainingData = [
+            { sqft: 1400, bedrooms: 2, bathrooms: 1, age: 10, location: 'urban', price: 300000 },
+            { sqft: 1600, bedrooms: 3, bathrooms: 2, age: 5, location: 'urban', price: 450000 },
+            { sqft: 1200, bedrooms: 2, bathrooms: 1, age: 15, location: 'suburban', price: 250000 },
+            { sqft: 2000, bedrooms: 4, bathrooms: 3, age: 2, location: 'urban', price: 650000 },
+            { sqft: 1800, bedrooms: 3, bathrooms: 2, age: 8, location: 'suburban', price: 400000 },
+            { sqft: 1000, bedrooms: 1, bathrooms: 1, age: 20, location: 'rural', price: 150000 },
+            { sqft: 2500, bedrooms: 5, bathrooms: 4, age: 1, location: 'urban', price: 800000 },
+            { sqft: 1300, bedrooms: 2, bathrooms: 1, age: 12, location: 'suburban', price: 280000 },
+            { sqft: 1700, bedrooms: 3, bathrooms: 2, age: 6, location: 'urban', price: 520000 },
+            { sqft: 1500, bedrooms: 3, bathrooms: 2, age: 7, location: 'suburban', price: 350000 },
+            { sqft: 1900, bedrooms: 4, bathrooms: 3, age: 3, location: 'urban', price: 580000 },
+            { sqft: 1100, bedrooms: 2, bathrooms: 1, age: 18, location: 'rural', price: 180000 },
+            { sqft: 2200, bedrooms: 4, bathrooms: 3, age: 4, location: 'suburban', price: 720000 },
+            { sqft: 1350, bedrooms: 2, bathrooms: 2, age: 9, location: 'urban', price: 380000 },
+            { sqft: 1750, bedrooms: 3, bathrooms: 2, age: 6, location: 'suburban', price: 420000 }
+        ];
+
+        let model = null;
+        let inputScaler = null;
+        let outputScaler = null;
+        let lossChart = null;
+
+        const locationMapping = { 'urban': 0, 'suburban': 1, 'rural': 2 };
+
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('lossChart').getContext('2d');
+            lossChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Training Loss',
+                        data: [],
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Validation Loss',
+                        data: [],
+                        borderColor: '#f093fb',
+                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Loss'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Epoch'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Training Progress'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Data preprocessing
+        function preprocessData(data) {
+            const features = [];
+            const labels = [];
+
+            for (const house of data) {
+                const feature = [
+                    house.sqft,
+                    house.bedrooms,
+                    house.bathrooms,
+                    house.age,
+                    locationMapping[house.location] || 0,
+                    house.sqft / house.bedrooms,
+                    house.bathrooms / house.bedrooms
+                ];
+                
+                features.push(feature);
+                labels.push(house.price);
+            }
+
+            return { features, labels };
+        }
+
+        // Normalize features
+        function normalizeFeatures(features) {
+            const featureTensor = tf.tensor2d(features);
+            const { mean, variance } = tf.moments(featureTensor, 0);
+            const normalizedFeatures = featureTensor.sub(mean).div(variance.sqrt());
+            
+            inputScaler = { mean, variance };
+            return normalizedFeatures;
+        }
+
+        // Normalize labels
+        function normalizeLabels(labels) {
+            const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
+            const { mean, variance } = tf.moments(labelTensor, 0);
+            const normalizedLabels = labelTensor.sub(mean).div(variance.sqrt());
+            
+            outputScaler = { mean, variance };
+            return normalizedLabels;
+        }
+
+        // Create model
+        function createModel(inputShape) {
+            const model = tf.sequential({
+                layers: [
+                    tf.layers.dense({
+                        inputShape: [inputShape],
+                        units: 64,
+                        activation: 'relu',
+                        kernelInitializer: 'heNormal'
+                    }),
+                    tf.layers.dropout({ rate: 0.2 }),
+                    tf.layers.dense({
+                        units: 32,
+                        activation: 'relu',
+                        kernelInitializer: 'heNormal'
+                    }),
+                    tf.layers.dropout({ rate: 0.2 }),
+                    tf.layers.dense({
+                        units: 16,
+                        activation: 'relu',
+                        kernelInitializer: 'heNormal'
+                    }),
+                    tf.layers.dense({
+                        units: 1,
+                        activation: 'linear'
+                    })
+                ]
+            });
+
+            model.compile({
+                optimizer: tf.train.adam(0.001),
+                loss: 'meanSquaredError'
+            });
+
+            return model;
+        }
+
+        // Update status
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+
+        // Train model
+        async function trainModel() {
+            try {
+                updateStatus('Initializing model training...', 'training');
+                document.getElementById('trainBtn').disabled = true;
+                document.getElementById('predictBtn').disabled = true;
+
+                // Reset chart
+                if (lossChart) {
+                    lossChart.destroy();
+                }
+                initChart();
+
+                // Preprocess data
+                const { features, labels } = preprocessData(trainingData);
+                const normalizedFeatures = normalizeFeatures(features);
+                const normalizedLabels = normalizeLabels(labels);
+
+                // Create model
+                model = createModel(features[0].length);
+
+                // Training parameters
+                const epochs = 100;
+                let currentEpoch = 0;
+
+                // Train model
+                const history = await model.fit(normalizedFeatures, normalizedLabels, {
+                    epochs: epochs,
+                    batchSize: 4,
+                    validationSplit: 0.2,
+                    shuffle: true,
+                    callbacks: {
+                        onEpochEnd: (epoch, logs) => {
+                            currentEpoch = epoch + 1;
+                            const progress = (currentEpoch / epochs) * 100;
+                            
+                            // Update progress bar
+                            document.getElementById('progressFill').style.width = `${progress}%`;
+                            document.getElementById('progressText').textContent = `Epoch ${currentEpoch}/${epochs}`;
+
+                            // Update metrics
+                            document.getElementById('trainLoss').textContent = logs.loss.toFixed(4);
+                            document.getElementById('valLoss').textContent = logs.val_loss.toFixed(4);
+
+                            // Update chart
+                            lossChart.data.labels.push(currentEpoch);
+                            lossChart.data.datasets[0].data.push(logs.loss);
+                            lossChart.data.datasets[1].data.push(logs.val_loss);
+                            lossChart.update('none');
+
+                            // Update status
+                            updateStatus(`Training in progress... Epoch ${currentEpoch}/${epochs} - Loss: ${logs.loss.toFixed(4)}`, 'training');
+                        }
+                    }
+                });
+
+                updateStatus('Model training completed successfully! Ready for predictions.', 'success');
+                document.getElementById('trainBtn').disabled = false;
+                document.getElementById('predictBtn').disabled = false;
+
+            } catch (error) {
+                console.error('Training error:', error);
+                updateStatus(`Training failed: ${error.message}`, 'error');
+                document.getElementById('trainBtn').disabled = false;
+            }
+        }
+
+        // Predict price
+        function predictPrice() {
+            if (!model) {
+                updateStatus('Please train the model first!', 'error');
+                return;
+            }
+
+            try {
+                // Get input values
+                const sqft = parseFloat(document.getElementById('sqft').value);
+                const bedrooms = parseFloat(document.getElementById('bedrooms').value);
+                const bathrooms = parseFloat(document.getElementById('bathrooms').value);
+                const age = parseFloat(document.getElementById('age').value);
+                const location = document.getElementById('location').value;
+
+                // Validate inputs
+                if (isNaN(sqft) || isNaN(bedrooms) || isNaN(bathrooms) || isNaN(age)) {
+                    updateStatus('Please fill in all fields with valid numbers!', 'error');
+                    return;
+                }
+
+                // Prepare feature
+                const feature = [
+                    sqft,
+                    bedrooms,
+                    bathrooms,
+                    age,
+                    locationMapping[location] || 0,
+                    sqft / bedrooms,
+                    bathrooms / bedrooms
+                ];
+
+              // Normalize input
+                const featureTensor = tf.tensor2d([feature]);
+                const normalizedInput = featureTensor.sub(inputScaler.mean).div(inputScaler.variance.sqrt());
+
+                // Predict
+                const normalizedPrediction = model.predict(normalizedInput);
+                const prediction = normalizedPrediction.mul(outputScaler.variance.sqrt()).add(outputScaler.mean);
+                const predictedPrice = prediction.dataSync()[0];
+
+                // Show result
+                document.getElementById('predictedPrice').textContent = `$${predictedPrice.toFixed(0)}`;
+                document.getElementById('result').style.display = 'block';
+
+                updateStatus(`Prediction completed! Estimated price: $${predictedPrice.toFixed(0)}`, 'success');
+
+                // Clean up tensors
+                featureTensor.dispose();
+                normalizedInput.dispose();
+                normalizedPrediction.dispose();
+                prediction.dispose();
+
+            } catch (error) {
+                console.error('Prediction error:', error);
+                updateStatus(`Prediction failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize chart when page loads
+        window.addEventListener('load', function() {
+            initChart();
+        });
+    </script>
+</body>
+</html>
